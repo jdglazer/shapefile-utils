@@ -9,7 +9,6 @@ import org.jamel.dbf.DbfReader;
 import com.jdglazer.shapefile.utils.InvalidFileTypeException;
 import com.jdglazer.shapefile.utils.FileModel;
 
-
 public class ShapeFile extends FileModel {
 	
 /**
@@ -62,6 +61,12 @@ public class ShapeFile extends FileModel {
 	public static final int SHP_HEADER_LAT_MIN_OFFSET = 44;
 	public static final int SHP_HEADER_LON_MAX_OFFSET = 52;
 	public static final int SHP_HEADER_LAT_MAX_OFFSET = 60;
+
+    //private final int GENERIC_RECORD_HEADER_RECORD_NUMBER_OFFSET = 0;
+    //private final int GENERIC_RECORD_HEADER_CONTENT_LENGTH_OFFSET = 4;
+    protected final int GENERIC_RECORD_HEADER_LENGTH = 8;
+
+
 /**
  * stores the valid shape index file extension
  * 

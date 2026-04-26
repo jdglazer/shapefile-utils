@@ -6,9 +6,17 @@ import java.io.IOException;
 import com.jdglazer.shapefile.utils.InvalidFileTypeException;
 
 public class PolygonShapeFile extends ShapeFile {
-	
+
+	//private final int RECORD_HEADER_SHAPE_TYPE_OFFSET = 0;
+	private final int RECORD_HEADER_MIN_LONGITUDE_OFFSET = 4;
+	private final int RECORD_HEADER_MIN_LATITUDE_OFFSET = 12;
+	private final int RECORD_HEADER_MAX_LONGITUDE_OFFSET = 20;
+	private final int RECORD_HEADER_MAX_LATITUDE_OFFSET = 28;
+	private final int RECORD_HEADER_NUM_PARTS_OFFSET = 36;
+	//private final int RECORD_HEADER_NUM_POINTS_OFFSET = 40;
+	private final int RECORD_HEADER_PART_OFFSET_ARRAY_OFFSET = 44;
+
 	//reusable pool variables (prevents overcrowding of memory)
-	
 	private int recOff, recOff1;
 	
 	public PolygonShapeFile(ShapeFile shapeFile) throws InvalidFileTypeException, FileNotFoundException, IOException {
@@ -19,7 +27,6 @@ public class PolygonShapeFile extends ShapeFile {
 	
 	//A function make sure the point offset is valid for a given part of a record
 	private void _vPointOffset(int recordIndex, int partIndex, int pointIndex) throws RecordOutOfBoundsException, IOException{
-		
 		if( partLength(recordIndex, partIndex) <= pointIndex || pointIndex < 0)
 			
 			throw new RecordOutOfBoundsException();
@@ -33,9 +40,7 @@ public class PolygonShapeFile extends ShapeFile {
  * @throws IOException
  * 
  */
-	
 	private void _vRecordIndex(int recordIndex) throws RecordOutOfBoundsException, IOException {
-		
 		if( recordIndex >= recordCount() || recordIndex < 0 )
 			
 			throw new RecordOutOfBoundsException();
@@ -45,41 +50,23 @@ public class PolygonShapeFile extends ShapeFile {
  * 
  * gets the offset of a specified part in a record
  * 
- * @param recordIndex THe index of the shape file record (starts at 0)
+ * @param recordIndex The index of the shape file record (starts at 0)
  * @param partIndex The index of the record part 
  * @return An integer offset of a part in the file 
  * @throws RecordOutOfBoundsException
  * @throws IOException
  * 
  */
-	
 	private int partOffset(int recordIndex, int partIndex) throws RecordOutOfBoundsException, IOException {
-		
 		if(partCount(recordIndex) <= partIndex || partIndex < 0)
-			
-			throw new RecordOutOfBoundsException();
-		
-		recOff1 = recordOffset(recordIndex) + 52;
-		
-		return recOff1 + ( getIntFrom( fileIndex( SHP_EXTENSION ) , L_END, recOff1+(partIndex*4))*16 ) + ( partCount( recordIndex )*4 );
-		
-		
-	}
 
-	/**
-	 * 
-	 * @param recordIndex
-	 * @return
-	 * @throws RecordOutOfBoundsException
-	 * @throws IOException
-	 */
-	private double getCoorExtrema(int recordIndex, int extrema_offset) throws RecordOutOfBoundsException, IOException {
-		
-		_vRecordIndex(recordIndex);
-		
-		return getDoubleFrom( fileIndex( SHP_EXTENSION ), 
-							  L_END, 
-							  recordOffset( recordIndex ) + 12 + extrema_offset );
+			throw new RecordOutOfBoundsException();
+
+		return recordOffset(recordIndex) // start of record
+				+ GENERIC_RECORD_HEADER_LENGTH // length generic record header
+				+ RECORD_HEADER_PART_OFFSET_ARRAY_OFFSET // start of parts offset array in header
+				+ ( partCount( recordIndex )*4 ) // after parts offsets array
+		        + ( getIntFrom( fileIndex( SHP_EXTENSION ) , L_END, recOff1+(partIndex*4))*16 );
 	}
 	
 /**
@@ -91,13 +78,11 @@ public class PolygonShapeFile extends ShapeFile {
  * @throws RecordOutOfBoundsException if an invalid recordIndex argument is supplied
  * 
  */
-	
 	public int partCount( int recordIndex ) throws IOException, RecordOutOfBoundsException {
-		
-		return getIntFrom( fileIndex(  SHP_EXTENSION ), L_END, recordOffset( recordIndex )+8+36 );
+		return getIntFrom( fileIndex(  SHP_EXTENSION ), L_END, recordOffset( recordIndex )+GENERIC_RECORD_HEADER_LENGTH+RECORD_HEADER_NUM_PARTS_OFFSET );
 		
 	}
-	
+
 /**
  * Gets the length of a part of a record in points
  * 
@@ -108,9 +93,7 @@ public class PolygonShapeFile extends ShapeFile {
  * @throws RecordOutOfBoundsException Invalid partIndex or recordIndex arguments supplied
  * 
  */
-	
 	public int partLength(int recordIndex, int partIndex) throws IOException, RecordOutOfBoundsException {
-		
 		if( partCount(recordIndex) <= partIndex || 0 > partIndex )
 			
 			throw new RecordOutOfBoundsException();
@@ -133,7 +116,6 @@ public class PolygonShapeFile extends ShapeFile {
 			  			getIntFrom( fileIndex( SHP_EXTENSION ), L_END, recOff+52+partIndex*4 );
 	
 	}
-	
 /**
  * Gets a specified pair of coordinates from a part of a record. 
  * 
@@ -146,25 +128,22 @@ public class PolygonShapeFile extends ShapeFile {
  * @throws IOException
  * 
  */
-	
 	public double [] getLatLon(int recordIndex, int partIndex, int pointIndex) throws RecordOutOfBoundsException, IOException {
-		
 		_vPointOffset(recordIndex, partIndex, pointIndex);
-		
-		recOff = partOffset( recordIndex, partIndex );
-		
-		recOff += pointIndex*16;
-		
+
+		recOff = partOffset(recordIndex, partIndex);
+
+		recOff += pointIndex * 16;
+
 		return new double[]{
-				
-				getDoubleFrom( fileIndex(  SHP_EXTENSION ), L_END, recOff + 8 ),
-				
-				getDoubleFrom( fileIndex(  SHP_EXTENSION ), L_END, recOff )
-				
-				};
-		
-	} 
-	
+
+				getDoubleFrom(fileIndex(SHP_EXTENSION), L_END, recOff + 8),
+
+				getDoubleFrom(fileIndex(SHP_EXTENSION), L_END, recOff)
+
+		};
+
+	}
 /**
  * Gets the minimum latitude extreme for a given record
  * 
@@ -174,10 +153,10 @@ public class PolygonShapeFile extends ShapeFile {
  * @throws IOException
  * 
  */
-	
 	public double minLat(int recordIndex) throws RecordOutOfBoundsException, IOException {
-		
-		return getCoorExtrema(recordIndex, 8);
+		return getDoubleFrom( fileIndex( SHP_EXTENSION ),
+				L_END,
+				recordOffset( recordIndex ) + GENERIC_RECORD_HEADER_LENGTH + RECORD_HEADER_MIN_LATITUDE_OFFSET );
 	}
 	
 /**
@@ -189,10 +168,10 @@ public class PolygonShapeFile extends ShapeFile {
  * @throws IOException
  * 
  */
-	
 	public double maxLat(int recordIndex) throws RecordOutOfBoundsException, IOException {
-		
-		return getCoorExtrema(recordIndex, 24);
+		return getDoubleFrom( fileIndex( SHP_EXTENSION ),
+				L_END,
+				recordOffset( recordIndex ) + GENERIC_RECORD_HEADER_LENGTH + RECORD_HEADER_MAX_LATITUDE_OFFSET );
 	}
 	
 /**
@@ -204,10 +183,10 @@ public class PolygonShapeFile extends ShapeFile {
  * @throws IOException
  * 
  */
-	
 	public double minLon(int recordIndex) throws RecordOutOfBoundsException, IOException {
-		
-		return getCoorExtrema(recordIndex, 0);
+		return getDoubleFrom( fileIndex( SHP_EXTENSION ),
+				L_END,
+				recordOffset( recordIndex ) + GENERIC_RECORD_HEADER_LENGTH + RECORD_HEADER_MIN_LONGITUDE_OFFSET );
 	}
 	
 /**
@@ -219,10 +198,10 @@ public class PolygonShapeFile extends ShapeFile {
  * @throws IOException
  * 
  */
-	
 	public double maxLon(int recordIndex) throws RecordOutOfBoundsException, IOException {
-		
-		return getCoorExtrema(recordIndex, 16);
+		return getDoubleFrom( fileIndex( SHP_EXTENSION ),
+				L_END,
+				recordOffset( recordIndex ) +  GENERIC_RECORD_HEADER_LENGTH + RECORD_HEADER_MAX_LONGITUDE_OFFSET );
 	}
 
 }
